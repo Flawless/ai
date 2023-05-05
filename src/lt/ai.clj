@@ -16,7 +16,7 @@
 (def default-chat-model (chat-models :gpt-3.5))
 
 (defn- chat-form [conversation {:keys [max-tokens temperature model]
-                               :or {max-tokens 4096
+                               :or {max-tokens 2048
                                     temperature 0
                                     model default-chat-model}}]
   {:model model
