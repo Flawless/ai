@@ -2,7 +2,8 @@
   (:require
    [clj-http.client :as client]
    [clojure.string :as s]
-   [clojure.tools.logging :as log]))
+   [clojure.tools.logging :as log]
+   [slingshot.slingshot :refer [throw+ try+]]))
 
 (defn- url [& path]
   (s/join "/" (into ["https://api.openai.com" "v1"] path)))
@@ -41,14 +42,37 @@
     :content-type :json
     :form-params form}))
 
+(defn- send-request [request {:keys [retries timeout auto-timeout?]
+                              :or {retries 0
+                                   timeout 1
+                                   auto-timeout? true}
+                              :as opts}]
+  (try+
+   (client/post (url "chat" "completions")
+                request)
+   (catch [:status 429] {:keys [error]}
+     (if (pos? retries)
+       (do
+         (log/warnf "Got AI error: %s, retrying in %d seconds" error timeout)
+         (Thread/sleep (* 1000 timeout))
+         (send-request request (-> opts
+                                   (update :retries dec)
+                                   (cond-> auto-timeout?
+                                     ;; don't update, cuz timeout is nillable
+                                     (assoc :timeout (* timeout 3))))))
+       (throw+)))))
+
+(defn generate-completion-async [conversation opts]
+  (future
+    (let [request (-> (chat-form conversation opts)
+                      (wrap-request opts))
+          _ (log/debug (str ">>ai " request))
+          response (send-request request opts)
+          _ (log/debug (str "<<ai " response))]
+      (conj conversation
+            (-> response
+                (get-in [:body :choices 0 :message])
+                (update :role keyword))))))
+
 (defn generate-completion [conversation opts]
-  (let [request (-> (chat-form conversation opts)
-                    (wrap-request opts))
-        _ (log/debug (str ">>ai " request))
-        response (client/post (url "chat" "completions")
-                              request)
-        _ (log/debug (str "<<ai " response))]
-    (conj conversation
-          (-> response
-              (get-in [:body :choices 0 :message])
-              (update :role keyword)))))
+  @(generate-completion-async conversation opts))
