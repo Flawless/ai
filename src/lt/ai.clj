@@ -59,7 +59,7 @@
                                    (update :retries dec)
                                    (cond-> auto-timeout?
                                      ;; don't update, cuz timeout is nillable
-                                     (assoc :timeout (* timeout 3))))))
+                                     (assoc :timeout (+ (* timeout 2) (rand)))))))
        (throw+)))))
 
 (defn generate-completion-async [conversation opts]
