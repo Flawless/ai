@@ -44,7 +44,7 @@
 
 (defn- send-request [request {:keys [retries timeout auto-timeout?]
                               :or {retries 0
-                                   timeout 1
+                                   timeout (long (rand 1000))
                                    auto-timeout? true}
                               :as opts}]
   (try+
@@ -53,13 +53,13 @@
    (catch [:status 429] {:keys [error]}
      (if (pos? retries)
        (do
-         (log/warnf "Got AI error: %s, retrying in %d seconds" error timeout)
-         (Thread/sleep (* 1000 timeout))
+         (log/warnf "Got AI error: %s, retrying in %d ms" error timeout)
+         (Thread/sleep timeout)
          (send-request request (-> opts
                                    (update :retries dec)
                                    (cond-> auto-timeout?
                                      ;; don't update, cuz timeout is nillable
-                                     (assoc :timeout (* timeout 3))))))
+                                     (assoc :timeout (* timeout 2))))))
        (throw+)))))
 
 (defn generate-completion-async [conversation opts]
