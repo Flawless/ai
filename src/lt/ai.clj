@@ -50,16 +50,16 @@
   (try+
    (client/post (url "chat" "completions")
                 request)
-   (catch [:status 429] {:keys [error]}
+   (catch [:status 429] e
      (if (pos? retries)
        (do
-         (log/warnf "Got AI error: %s, retrying in %d ms" error timeout)
+         (log/warnf "Got AI error: %s, retrying in %d ms" (-> e :body :error :message) timeout)
          (Thread/sleep timeout)
          (send-request request (-> opts
                                    (update :retries dec)
                                    (cond-> auto-timeout?
                                      ;; don't update, cuz timeout is nillable
-                                     (assoc :timeout (* timeout 2))))))
+                                     (assoc :timeout (+ (* timeout 2) (rand-int 1000)))))))
        (throw+)))))
 
 (defn generate-completion-async [conversation opts]
@@ -76,3 +76,14 @@
 
 (defn generate-completion [conversation opts]
   @(generate-completion-async conversation opts))
+
+(comment
+  (dotimes [x 4]
+    (generate-completion [{:role :system :content (str "You are translator bot and should translate each user message to desired language (English if not specified otherwise).")}
+                          {:role :user :content (format "Please, introduce yourself as an translation bot in language defined by locale \"%s\" and give a brief instruction. Also note, that you can process voice messages along with texts." "russian")}]
+                         {:auth "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"
+                          :retries 3})
+    (println x))
+
+  ;;
+  )
