@@ -67,12 +67,15 @@
     (let [request (-> (chat-form conversation opts)
                       (wrap-request opts))
           _ (log/debug (str ">>ai " request))
-          response (send-request request opts)
+          {:keys [body] :as response} (send-request request opts)
           _ (log/debug (str "<<ai " response))]
-      (conj conversation
-            (-> response
-                (get-in [:body :choices 0 :message])
-                (update :role keyword))))))
+      {:conversation (conj conversation
+                           (-> body
+                               (get-in [:choices 0 :message])
+                               (update :role keyword)))
+       :usage {:prompt-tokens (-> body :usage :prompt_tokens)
+               :completion-tokens (-> body :usage :completion_tokens)
+               :total-tokens (-> body :usage :total_tokens)}})))
 
 (defn generate-completion [conversation opts]
   @(generate-completion-async conversation opts))
