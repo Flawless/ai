@@ -8,22 +8,22 @@
 (defn- url [& path]
   (s/join "/" (into ["https://api.openai.com" "v1"] path)))
 
-(def chat-models {
-                  ;; default choice
+(def chat-models {;; default choice
                   :gpt-3.5 "gpt-3.5-turbo"
                   ;; fast and chepest
                   :ada "text-ada-001"})
 
 (def default-chat-model (chat-models :gpt-3.5))
 
-(defn- chat-form [conversation {:keys [max-tokens temperature model]
-                               :or {max-tokens 2048
-                                    temperature 0
-                                    model default-chat-model}}]
-  {:model model
-   :messages conversation
-   :max_tokens max-tokens
-   :temperature temperature})
+(defn- chat-form [conversation {:keys [max-tokens temperature model extra]
+                                :or {max-tokens 2048
+                                     temperature 0
+                                     model default-chat-model}}]
+  (merge extra
+         {:model model
+          :messages conversation
+          :max_tokens max-tokens
+          :temperature temperature}))
 
 (defn- gen-bearer [auth]
   (str "Bearer " auth))
